@@ -1,0 +1,12 @@
+# text
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.git
+.gitignore
+venv/
+dist/
+build/
+*.egg-info

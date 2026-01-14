@@ -2,10 +2,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from fastapi import HTTPException, status
 from datetime import date
+import logging
 
 from app.repositories.wishlist_repo import WishlistRepository
 from app.schemas.wishlist import WishlistResponse, WishlistCreate, WishlistUpdate
 from app.repositories.user_repo import UserRepository
+from app.tasks.tasks import enqueue_welcome_email
+
+logger = logging.getLogger(__name__)
 
 class WishlistService:
     def __init__(self, session: AsyncSession):
@@ -37,6 +41,13 @@ class WishlistService:
         if "event_date" in data and isinstance(data["event_date"], str):
             data["event_date"] = self.parse_event_date(data["event_date"])
         wishlist = await self.wishlist_repo.create_wishlist(data)
+
+        try:
+            job_id = enqueue_welcome_email(user.email, wishlist.name)
+            if job_id:
+                logger.info("Поставлена задача отправки приветственного письма, job_id=%s", job_id)
+        except Exception as e:
+            logger.error(f"Failed to enqueue email task: {str(e)}")
         return WishlistResponse.model_validate(wishlist)
 
     async def update_wishlist(self, wishlist_id: int, data: WishlistUpdate) -> WishlistResponse:
